@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import {Engine, HemisphericLight, Scene, SceneLoader, Vector3} from '@babylonjs/core';
+ import React, { useEffect, useRef } from 'react';
+import {CubeTexture, Engine, Scene, SceneLoader} from '@babylonjs/core';
 import '@babylonjs/loaders';
+import { WebIO } from '@gltf-transform/core';
 
 interface BabylonCanvasProps {
     width: number;
@@ -8,32 +9,40 @@ interface BabylonCanvasProps {
 }
 
 
-function createScene(engine: Engine): Scene {
+async function transform(): Promise<Uint8Array> {
+    const io = new WebIO({credentials: 'include'});
+    let document = await io.read('gltf/casette.glb');  // → Document
+
+    document.transform([
+        {
+            
+        }
+    ])
+
+    return io.writeBinary(document);
+}
+
+async function createScene(engine: Engine): Promise<Scene> {
     const scene = new Scene(engine);
 
     // Scene loaded callback
     scene.createDefaultEnvironment();
 
-    // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-    // var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-    // light.intensity = 0.7;
+    var hdrTexture = CubeTexture.CreateFromPrefilteredData("gltf/environment.dds", scene);
+     scene.createDefaultSkybox(hdrTexture, true);
 
     scene.createDefaultCameraOrLight(true, true, true);
     // const camera = scene.activeCamera
 
 
-    // const ww = transform()
-    // const assetBlob = new Blob([assetArrayBuffer]);
-    // const assetUrl = URL.createObjectURL(assetBlob);
+    const transformedDocument = await transform()
+    const assetBlob = new Blob([transformedDocument.buffer]);
+    const assetUrl = URL.createObjectURL(assetBlob);
 
-    SceneLoader.Append("gltf/", "model.gltf", scene, function () {
-
-        // Optionally, you can manipulate the loaded scene here
-
-    }, function (progress) {
+    await SceneLoader.AppendAsync(assetUrl, undefined, scene, function (progress) {
         // Loading progress callback
         console.log("Loading: " + progress.loaded + "/" + progress.total);
-    });
+    }, '.glb');
 
     return scene;
 }
@@ -44,21 +53,14 @@ const BabylonViewer: React.FC<BabylonCanvasProps> = ({ width, height }) => {
     useEffect(() => {
         if (canvasRef.current) {
             const engine = new Engine(canvasRef.current, true);
-            const scene = createScene(engine);
-
-            var light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
-            light.intensity = 0.7;
-
-            scene.createDefaultCameraOrLight(true, true, true);
-
-
-            engine.runRenderLoop(() => {
-                scene.render();
+            engine.hideLoadingUI()
+            createScene(engine).then(scene => {
+                engine.runRenderLoop(() => {
+                    scene.render();
+                });
             });
 
             return () => {
-                scene.dispose();
-                engine.dispose();
             };
         }
     }, []);
