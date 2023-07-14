@@ -5,6 +5,6 @@ import BabylonViewer from "./babylon-viewer";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-      <BabylonViewer width={800} height={600} />
+      <BabylonViewer width={1024} height={600} previewId="gltf/casette.glb"/>
   </React.StrictMode>,
 )

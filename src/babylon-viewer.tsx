@@ -6,36 +6,29 @@ import { WebIO } from '@gltf-transform/core';
 interface BabylonCanvasProps {
     width: number;
     height: number;
+    previewId: string
 }
 
 
-async function transform(): Promise<Uint8Array> {
+async function transform(previewId : string): Promise<Uint8Array> {
     const io = new WebIO({credentials: 'include'});
-    let document = await io.read('gltf/casette.glb');  // → Document
-
-    document.transform([
-        {
-            
-        }
-    ])
+    let document = await io.read(previewId);  // → Document
 
     return io.writeBinary(document);
 }
 
-async function createScene(engine: Engine): Promise<Scene> {
+async function createScene(engine: Engine, previewId: string): Promise<Scene> {
     const scene = new Scene(engine);
 
-    // Scene loaded callback
-    scene.createDefaultEnvironment();
-
     var hdrTexture = CubeTexture.CreateFromPrefilteredData("gltf/environment.dds", scene);
-     scene.createDefaultSkybox(hdrTexture, true);
 
+    // Scene loaded callback
+    scene.createDefaultEnvironment({skyboxTexture: hdrTexture, createSkybox: true, sizeAuto:true});
     scene.createDefaultCameraOrLight(true, true, true);
     // const camera = scene.activeCamera
 
 
-    const transformedDocument = await transform()
+    const transformedDocument = await transform(previewId)
     const assetBlob = new Blob([transformedDocument.buffer]);
     const assetUrl = URL.createObjectURL(assetBlob);
 
@@ -43,18 +36,17 @@ async function createScene(engine: Engine): Promise<Scene> {
         // Loading progress callback
         console.log("Loading: " + progress.loaded + "/" + progress.total);
     }, '.glb');
-
     return scene;
 }
 
-const BabylonViewer: React.FC<BabylonCanvasProps> = ({ width, height }) => {
+const BabylonViewer: React.FC<BabylonCanvasProps> = ({ width, height, previewId }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         if (canvasRef.current) {
             const engine = new Engine(canvasRef.current, true);
             engine.hideLoadingUI()
-            createScene(engine).then(scene => {
+            createScene(engine, previewId).then(scene => {
                 engine.runRenderLoop(() => {
                     scene.render();
                 });
